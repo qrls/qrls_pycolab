@@ -32,7 +32,7 @@ from pycolab.protocols import logging as plab_logging
 import six
 
 
-class CursesUi(object):
+class CursesAi(object):
   """A terminal-based UI for pycolab games."""
 
   def __init__(self,
@@ -129,28 +129,21 @@ class CursesUi(object):
     self._total_return = None
 
   def _init_curses_and_play(self, screen):
-    """Set up an already-running curses; do interaction loop.
+  """Set up an already-running curses; do interaction loop.
 
-    This method is intended to be passed as an argument to `curses.wrapper`,
-    so its only argument is the main, full-screen curses window.
+      This method is intended to be passed as an argument to `curses.wrapper`,
+      so its only argument is the main, full-screen curses window.
 
-    Args:
-      screen: the main, full-screen curses window.
+      Args:
+        screen: the main, full-screen curses window.
 
-    Raises:
-      ValueError: if any key in the `keys_to_actions` dict supplied to the
-          constructor has already been reserved for use by `CursesUi`.
-    """
+      Raises:
+        ValueError: if any key in the `keys_to_actions` dict supplied to the
+            constructor has already been reserved for use by `CursesUi`.
+      """
     # See whether the user is using any reserved keys. This check ought to be in
     # the constructor, but it can't run until curses is actually initialised, so
     # it's here instead.
-    for key, action in six.iteritems(self._randcodes_to_actions):
-      if key in (curses.KEY_PPAGE, curses.KEY_NPAGE):
-        raise ValueError(
-            'the keys_to_actions argument to the CursesUi constructor binds '
-            'action {} to the {} key, which is reserved for CursesUi. Please '
-            'choose a different key for this action.'.format(
-                repr(action), repr(curses.keyname(key))))
 
     # If the terminal supports colour, program the colours into curses as
     # "colour pairs". Update our dict mapping characters to colour pairs.

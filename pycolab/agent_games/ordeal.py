@@ -274,12 +274,7 @@ def main(argv=()):
   game = make_game()
 
   # Make a CursesUi to play it with.
-  """ui = human_ui.CursesUi(
-      keys_to_actions={curses.KEY_UP: 0, curses.KEY_DOWN: 1,
-                       curses.KEY_LEFT: 2, curses.KEY_RIGHT: 3,
-                       'q': 4, -1: None},  # quit
-      delay=200, colour_fg=COLOURS)"""
-  ui = random_agent.CursesUi(
+  ui = random_agent.CursesAi(
       rand_to_actions={"UP": 0, "DOWN": 1,
                        "LEFT": 2, "RIGHT": 3},  # quit
       delay=200, colour_fg=COLOURS)
