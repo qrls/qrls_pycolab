@@ -29,12 +29,12 @@ import sys
 
 from pycolab import ascii_art
 from pycolab import cropping
-from pycolab import human_ui
+from pycolab import random_agent
 from pycolab import storytelling
 from pycolab import things as plab_things
 from pycolab.prefab_parts import sprites as prefab_sprites
 
-#
+
 GAME_ART_CASTLE = ['##  ##   ##  ##',
                    '###############',
                    '#             #',
@@ -209,6 +209,7 @@ class PlayerSprite(prefab_sprites.MazeWalker):
     # protocol. Anyhow, the first four clauses handle actual agent actions.
     # Note how much of the work amounts to detecting whether we are moving
     # beyond the edge of the board, and if so, which game we should go to next.
+
     if actions == 0:  # go upward?
       if the_plot.this_chapter == 'kansas' and self.position.row <= 0:
         the_plot.next_chapter = 'castle'
@@ -273,10 +274,14 @@ def main(argv=()):
   game = make_game()
 
   # Make a CursesUi to play it with.
-  ui = human_ui.CursesUi(
+  """ui = human_ui.CursesUi(
       keys_to_actions={curses.KEY_UP: 0, curses.KEY_DOWN: 1,
                        curses.KEY_LEFT: 2, curses.KEY_RIGHT: 3,
                        'q': 4, -1: None},  # quit
+      delay=200, colour_fg=COLOURS)"""
+  ui = random_agent.CursesUi(
+      rand_to_actions={"UP": 0, "DOWN": 1,
+                       "LEFT": 2, "RIGHT": 3},  # quit
       delay=200, colour_fg=COLOURS)
 
   # Let the game begin!

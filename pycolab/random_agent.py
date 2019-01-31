@@ -23,6 +23,8 @@ import copy
 import curses
 import datetime
 import textwrap
+import random
+from time import sleep
 
 from pycolab import cropping
 from pycolab.protocols import logging as plab_logging
@@ -34,89 +36,10 @@ class CursesUi(object):
   """A terminal-based UI for pycolab games."""
 
   def __init__(self,
-               keys_to_actions, delay=None,
+               rand_to_actions, delay=None,
                repainter=None, colour_fg=None, colour_bg=None,
                croppers=None):
-    """Construct and configure a `CursesUi` for pycolab games.
 
-    A `CursesUi` object can be used over and over again to play any number of
-    games implemented by using pycolab---however, the configuration options used
-    to build the object will probably only be suitable for some.
-
-    `CursesUi` provides colour support, but only in terminals that support true
-    colour text colour attributes, and only when there is sufficient space in
-    the terminal's colourmap, as well as a sufficient number of free "colour
-    pairs", to accommodate all the characters given custom colours in
-    `colour_fg` and `colour_bg`. Your terminal may be compatible out of the box;
-    it may be compatible but only after setting the `$TERM` environment
-    variable; or it may simply not work. Some specific guidance:
-
-        To use this:         do this:
-        ------------         --------
-        iTerm2               nothing (should work out of the box)
-        MacOS Terminal       switch to iTerm2 (it doesn't really work)
-        GNOME Terminal       set $TERM to xterm-256color
-        Modern xterm         set $TERM to xterm-256color
-        tmux, screen         follow guidance at [1]
-        ASR-33               buy a box of crayons
-
-    Like any self-respecting game interface, `CursesUi` features a game console,
-    which can be revealed and hidden via the Page Up and Page Down keys
-    respectively. Log strings accumulated in the `Plot` object via its `log`
-    method are shown in the console.
-
-    [1]: https://sanctum.geek.nz/arabesque/256-colour-terminals/
-
-    Args:
-      keys_to_actions: a dict mapping characters or key codes to whatever
-          action symbols your pycolab games understand. For example, if your
-          game uses the integer 5 to mean "shoot laser", you could map ' ' to 5
-          so that the player can shoot the laser by tapping the space bar. "Key
-          codes" are the numerical ASCII (and other) codes that the Python
-          `curses` library uses to mark keypresses besides letters, numbers, and
-          punctuation; codes like `curses.KEY_LEFT` may be especially useful.
-          For more on these, visit the [`curses` manual](
-          https://docs.python.org/2/library/curses.html#constants). Any
-          character or key code received from the user but absent from this dict
-          will be ignored. See also the note about `-1` in the documentation for
-          the `delay` argument.
-      delay: whether to timeout when retrieving a keypress from the user, and
-          if so, for how long. If None, `CursesUi` will wait indefinitely for
-          the user to press a key between game iterations; if positive,
-          `CursesUi` will wait that many milliseconds. If the waiting operation
-          times out, `CursesUi` will look up the keycode `-1` in the
-          `keys_to_actions` dict and pass the corresponding action on to the
-          game. So, if you use this delay option, make certain that you have an
-          action mapped to the keycode `-1` in `keys_to_actions`; otherwise, the
-          timeouts will be ignored, and `CursesUi` will behave as if `delay`
-          were None.
-      repainter: an optional `ObservationCharacterRepainter` that changes the
-          characters used by the observation returned from the game engine,
-          presumably to a character set that makes the observations match your
-          preferred look for the game.
-      colour_fg: an optional mapping from single ASCII character strings to
-          3-tuples (or length 3 lists) encoding an RGB colour. These colours are
-          used (in compatible terminals only) as the foreground colour when
-          printing those characters. If unspecified for a particular character,
-          or if None, some boring default colour is used instead. *NOTE: RGB
-          component values range in `[0,999]`, not `[0,255]` as you may have
-          expected.*
-      colour_bg: exactly like `colour_fg`, but for charcter background colours.
-          If unspecified, the same colours specified by `colour_fg` (or its
-          defaults) are used instead (so characters basically become tall
-          rectangular pixels).
-      croppers: None, or a list of `cropping.ObservationCropper` instances
-          and/or None values. If a list of `ObservationCropper`s, each cropper
-          in the list will make its own crop of the observation, and the cropped
-          observations will all be shown side-by-side. A None value in the list
-          means observations returned by the pycolab game supplied to the `play`
-          method should be shown directly instead of cropped. A single None
-          value for this argument is a shorthand for `[None]`.
-
-    Raises:
-      TypeError: if any key in the `keys_to_actions` dict is neither a numerical
-          keycode nor a length-1 ASCII string.
-    """
     # This slot holds a reference to the game currently being played, or None
     # if no game is being played at the moment.
     self._game = None
@@ -130,13 +53,9 @@ class CursesUi(object):
 
     # The curses `getch` routine returns numeric keycodes, but users can specify
     # keyboard input as strings as well, so we convert strings to keycodes.
-    try:
-      self._keycodes_to_actions = {
-          ord(key) if isinstance(key, str) else key: action
-          for key, action in six.iteritems(keys_to_actions)}
-    except TypeError:
-      raise TypeError('keys in the keys_to_actions argument must either be '
-                      'numerical keycodes or single ASCII character strings.')
+    self._randcodes_to_actions = {
+        key: action
+        for key, action in six.iteritems(rand_to_actions)}
 
     # We'd like to see whether the user is using any reserved keys here in the
     # constructor, but we have to wait until curses is actually running to do
@@ -225,7 +144,7 @@ class CursesUi(object):
     # See whether the user is using any reserved keys. This check ought to be in
     # the constructor, but it can't run until curses is actually initialised, so
     # it's here instead.
-    for key, action in six.iteritems(self._keycodes_to_actions):
+    for key, action in six.iteritems(self._randcodes_to_actions):
       if key in (curses.KEY_PPAGE, curses.KEY_NPAGE):
         raise ValueError(
             'the keys_to_actions argument to the CursesUi constructor binds '
@@ -271,25 +190,16 @@ class CursesUi(object):
     self._total_return = reward
     self._display(
         screen, observations, self._total_return, elapsed=datetime.timedelta())
-
+    rand_keys = self._randcodes_to_actions.keys()
     # Oh boy, play the game!
     while not self._game.game_over:
-      # Wait (or not, depending) for user input, and convert it to an action.
-      # Unrecognised keycodes cause the game display to repaint (updating the
-      # elapsed time clock and potentially showing/hiding/updating the log
-      # message display) but don't trigger a call to the game engine's play()
-      # method. Note that the timeout "keycode" -1 is treated the same as any
-      # other keycode here.
-      keycode = screen.getch()
-      if keycode == curses.KEY_PPAGE:    # Page Up? Show the game console.
-        paint_console = True
-      elif keycode == curses.KEY_NPAGE:  # Page Down? Hide the game console.
-        paint_console = False
-      elif keycode in self._keycodes_to_actions:
+      sleep(0.05) #To see it
+      keycode = random.choice(rand_keys)
+      if keycode in self._randcodes_to_actions:
         # Convert the keycode to a game action and send that to the engine.
         # Receive a new observation, reward, discount; crop and repaint; update
         # total return.
-        action = self._keycodes_to_actions[keycode]
+        action = self._randcodes_to_actions[keycode]
         observation, reward, _ = self._game.play(action)
         observations = crop_and_repaint(observation)
         if self._total_return is None:
@@ -454,7 +364,6 @@ class CursesUi(object):
       cpair_fg_id = colour_ids[cpair_fg]
       cpair_bg_id = colour_ids[cpair_bg]
       curses.init_pair(pid, cpair_fg_id, cpair_bg_id)
-
 
 def _format_timedelta(timedelta):
   """Convert timedelta to string, lopping off microseconds."""
