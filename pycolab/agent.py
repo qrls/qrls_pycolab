@@ -30,7 +30,7 @@ from pycolab import cropping
 from pycolab.protocols import logging as plab_logging
 
 import six
-
+from pycolab import Model
 
 class CursesAi(object):
   """A terminal-based UI for pycolab games."""
@@ -129,7 +129,7 @@ class CursesAi(object):
     self._total_return = None
 
   def _init_curses_and_play(self, screen):
-  """Set up an already-running curses; do interaction loop.
+    """Set up an already-running curses; do interaction loop.
 
       This method is intended to be passed as an argument to `curses.wrapper`,
       so its only argument is the main, full-screen curses window.
@@ -183,11 +183,10 @@ class CursesAi(object):
     self._total_return = reward
     self._display(
         screen, observations, self._total_return, elapsed=datetime.timedelta())
-    rand_keys = self._randcodes_to_actions.keys()
+    action_keys = self._randcodes_to_actions.keys()
     # Oh boy, play the game!
     while not self._game.game_over:
-      sleep(0.05) #To see it
-      keycode = random.choice(rand_keys)
+      keycode = Model.AgentModel(observation,action_keys,reward)
       if keycode in self._randcodes_to_actions:
         # Convert the keycode to a game action and send that to the engine.
         # Receive a new observation, reward, discount; crop and repaint; update

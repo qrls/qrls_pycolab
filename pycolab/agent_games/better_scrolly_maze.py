@@ -46,7 +46,7 @@ import sys
 
 from pycolab import ascii_art
 from pycolab import cropping
-from pycolab import random_agent
+from pycolab import agent
 from pycolab import things as plab_things
 from pycolab.prefab_parts import sprites as prefab_sprites
 
@@ -329,7 +329,7 @@ def main(argv=()):
   croppers = make_croppers(level)
 
   # Make a CursesUi to play it with.
-  ui = random_agent.CursesAi(
+  ui = agent.CursesAi(
       rand_to_actions={"UP": 0, "DOWN": 1,
                        "LEFT": 2, "RIGHT": 3},  # quit
       delay=100, colour_fg=COLOUR_FG, colour_bg=COLOUR_BG,
